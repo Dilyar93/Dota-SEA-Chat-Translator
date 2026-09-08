@@ -1,0 +1,53 @@
+general:
+  enabled: true
+  pause_when_dota_inactive: true
+  offline_mode: true
+
+capture:
+  fps: 5
+  change_threshold: 5.0
+  debounce_ms: 150
+  black_frame_limit: 5
+
+roi:
+  left: 0.20
+  top: 0.58
+  width: 0.60
+  height: 0.27
+
+ocr:
+  upscale: 2.0
+  preset: normal
+  latin_model: latin_PP-OCRv5_mobile_rec
+  thai_model: th_PP-OCRv5_mobile_rec
+  detection_model_path: models/PP-OCRv5_mobile_det
+  latin_model_path: models/latin_PP-OCRv5_mobile_rec
+  thai_model_path: models/th_PP-OCRv5_mobile_rec
+  confidence_threshold: 0.55
+
+language:
+  model_path: models/lid.176.bin
+  confidence_threshold: 0.60
+  skip_english: true
+  skip_chinese: true
+
+translation:
+  backend: nllb
+  model_path: models/nllb-200-distilled-600M-ct2
+  tokenizer_path: models/nllb-200-distilled-600M-ct2
+  device: cpu
+  compute_type: int8
+  target: zho_Hans
+
+overlay:
+  max_messages: 5
+  display_seconds: 8
+  font_size: 20
+  opacity: 0.88
+
+privacy:
+  save_screenshots: false
+  save_chat_logs: false
+
+debug:
+  enabled: false
