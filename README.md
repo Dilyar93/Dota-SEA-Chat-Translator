@@ -34,6 +34,20 @@ The application now provides:
 - bounded capture, OCR and translation queues that discard stale work;
 - tray-based overlay positioning and a minimal settings dialog.
 
+## Project story (STAR)
+
+- **Situation:** SEA Dota matches mix several languages in a fast-moving chat,
+  while existing translation approaches can introduce privacy or anti-cheat risk.
+- **Task:** Build a responsive, fully local translator without reading game
+  memory, injecting code, automating input, or sending chat data to a service.
+- **Action:** Designed a screen-only pipeline that limits capture to a calibrated
+  region, avoids redundant OCR through change detection and deduplication, drops
+  stale work with bounded queues, and combines language-aware OCR with local
+  int8 translation behind a focus-safe overlay.
+- **Result:** Delivered the end-to-end MVP with 57 automated tests and a passing
+  security scan. Screenshots and chat stay in memory, and real Windows/Dota
+  accuracy and latency are explicitly tracked as the remaining acceptance work.
+
 ## Development setup
 
 Target: Windows 10/11 x64 and Python 3.11 or 3.12.
