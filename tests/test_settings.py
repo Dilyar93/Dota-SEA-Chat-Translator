@@ -18,11 +18,11 @@ class SettingsTests(unittest.TestCase):
     def test_values_are_bounded_and_applied(self):
         config = copy.deepcopy(DEFAULT_CONFIG)
         dialog = SettingsDialog(config)
-        dialog.fps.setValue(999)
+        dialog.display_seconds.setValue(999)
         dialog.translate_english.setChecked(True)
         dialog.max_messages.setValue(3)
         dialog.apply(config)
-        self.assertEqual(config["capture"]["fps"], 30)
+        self.assertEqual(config["overlay"]["display_seconds"], 60)
         self.assertFalse(config["language"]["skip_english"])
         self.assertEqual(config["overlay"]["max_messages"], 3)
 

@@ -24,14 +24,14 @@ The application now provides:
 - tray-only startup;
 - strict foreground Dota 2 window detection through desktop window APIs;
 - mouse ROI calibration stored as client-area ratios;
-- `mss` ROI capture, black-frame warning, change detection and debounce;
+- on-demand `mss` ROI capture with **F8** and black-frame feedback;
 - three OCR preprocessing presets;
-- PaddleOCR PP-OCRv5 Latin recognition with low-confidence Thai fallback;
-- OCR line reconstruction, speaker parsing and 15-second fuzzy deduplication;
+- PaddleOCR PP-OCRv5 Latin recognition with a Thai fallback for uncertain or untranslatable text;
+- OCR line reconstruction, speaker parsing and fuzzy deduplication within each snapshot;
 - Unicode-first Thai/Chinese detection and lazy fastText `lid.176` detection;
-- lazy local NLLB/CTranslate2 int8 translation with a runtime cache and Dota glossary;
+- local NLLB/CTranslate2 int8 translation with a runtime cache and Dota glossary;
 - a focus-safe, click-through subtitle overlay with five-message expiry;
-- bounded capture, OCR and translation queues that discard stale work;
+- bounded OCR and translation queues that discard stale work;
 - tray-based overlay positioning and a minimal settings dialog.
 
 ## Project story (STAR)
@@ -40,9 +40,8 @@ The application now provides:
   while existing translation approaches can introduce privacy or anti-cheat risk.
 - **Task:** Build a responsive, fully local translator without reading game
   memory, injecting code, automating input, or sending chat data to a service.
-- **Action:** Designed a screen-only pipeline that limits capture to a calibrated
-  region, avoids redundant OCR through change detection and deduplication, drops
-  stale work with bounded queues, and combines language-aware OCR with local
+- **Action:** Designed a screen-only pipeline that captures a calibrated region
+  on demand, drops stale work with bounded queues, and combines language-aware OCR with local
   int8 translation behind a focus-safe overlay.
 - **Result:** Delivered the end-to-end MVP with 57 automated tests and a passing
   security scan. Screenshots and chat stay in memory, and real Windows/Dota
@@ -83,8 +82,9 @@ Language detection uses the official `lid.176.bin` file at
 1. Start Dota 2 in Borderless Window mode.
 2. Run `run.bat`; the app starts in the Windows system tray.
 3. Choose **Calibrate Chat Area** and drag around the visible chat messages.
-4. Leave **Translation Enabled** checked. New supported-language chat is
-   translated on a background worker and appears in the subtitle overlay.
+4. Leave **Translation Enabled** checked. With the game in the foreground and
+   chat visible, press **F8**. The app captures one snapshot and
+   displays its translations in the subtitle overlay.
 5. Use **Move Overlay** to temporarily disable click-through and drag the
    subtitles, then uncheck it before playing.
 6. Use **Settings**, **Debug ROI Preview**, or **Test OCR Image** as needed.
@@ -95,9 +95,8 @@ The one-shot console command is also available:
 .venv\Scripts\python -m app.ocr.test_image path\to\chat-roi.png
 ```
 
-If capture remains black, switch Dota 2 to Borderless Window mode. The app does
-not attempt a DirectX hook or another bypass. Capture and OCR pause while Dota
-2 is not the foreground window.
+If capture remains black, switch Dota 2 to Borderless Window mode. The app
+registers F8 while Dota 2 is in the foreground and releases it when you switch away.
 
 ## Tests
 
@@ -140,6 +139,6 @@ first delivery stable, verify on Windows 10/11 with real Dota chat that:
 - tray actions and DPI-scaled ROI selection align correctly;
 - `mss` captures Borderless Window pixels without black frames;
 - Latin, Vietnamese accents and Thai are readable with the downloaded models;
-- one visible message produces one console event after remaining on screen.
+- a shortcut press processes the visible chat once, with no idle capture.
 
 Record results in `DEVELOPMENT_PLAN.md` under Phase 7.3.

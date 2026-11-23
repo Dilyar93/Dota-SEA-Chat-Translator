@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Mapping
+from typing import Callable, Mapping
 
 import numpy as np
 
@@ -15,6 +15,8 @@ def recognize_frame(
     frame: np.ndarray,
     config: Mapping,
     backend: PaddleOCRBackend | None = None,
+    *,
+    retry_thai: Callable[[list[OCRLine]], bool] | None = None,
 ) -> list[OCRLine]:
     backend = backend or PaddleOCRBackend(
         latin_model=config["latin_model"],
@@ -25,4 +27,8 @@ def recognize_frame(
         thai_model_dir=config.get("thai_model_path"),
     )
     prepared = preprocess(frame, config["preset"], float(config["upscale"]))
-    return reconstruct_lines(backend.recognize(prepared).tokens)
+    if retry_thai is not None and isinstance(backend, PaddleOCRBackend):
+        result = backend.recognize(prepared, retry_thai=lambda tokens: retry_thai(reconstruct_lines(tokens)))
+    else:
+        result = backend.recognize(prepared)
+    return reconstruct_lines(result.tokens)

@@ -1,11 +1,9 @@
 import queue
 import threading
-import time
 import unittest
 
 import numpy as np
 
-from app.capture.change_detector import ChangeDetector
 from app.capture.dota_window import DotaWindow, ScreenRect
 from app.capture.screen_capture import CapturedFrame
 from app.language.detector import LanguageResult
@@ -15,8 +13,8 @@ from app.pipeline import CapturePipeline, MessageProcessor, put_latest
 
 
 CONFIG = {
-    "general": {"enabled": True, "pause_when_dota_inactive": True},
-    "capture": {"fps": 100, "change_threshold": 5, "debounce_ms": 0, "black_frame_limit": 3},
+    "general": {"enabled": True},
+    "capture": {"black_frame_limit": 3},
     "roi": {"left": 0, "top": 0, "width": 1, "height": 1},
     "ocr": {
         "upscale": 1,
@@ -40,8 +38,7 @@ class FakeCapture:
 
     def grab(self, _rect):
         self.count += 1
-        value = 0 if self.count == 1 else 255
-        image = np.full((40, 100, 3), value, dtype=np.uint8)
+        image = np.full((40, 100, 3), 255, dtype=np.uint8)
         return CapturedFrame(image, False, 0, False)
 
     def close(self):
@@ -80,9 +77,10 @@ class PipelineTests(unittest.TestCase):
         indonesian = MessageProcessor(CONFIG["language"], FakeLanguageDetector("id"))
         self.assertEqual(indonesian.process(line)[0].source_lang, "id")
 
-    def test_full_capture_event_emits_one_new_message(self):
+    def test_each_request_captures_once_and_can_repeat_the_same_chat(self):
         messages = []
         received = threading.Event()
+        capture = FakeCapture(3)
 
         def on_message(message):
             messages.append(message)
@@ -92,16 +90,45 @@ class PipelineTests(unittest.TestCase):
             CONFIG,
             on_message,
             window_provider=lambda: DotaWindow(1, "Dota 2", ScreenRect(0, 0, 100, 40), True),
-            capture_factory=FakeCapture,
-            detector=ChangeDetector(5, 0),
+            capture_factory=lambda _limit: capture,
             backend=FakeBackend(),
             language_detector=FakeLanguageDetector(),
         )
         pipeline.start()
+        self.addCleanup(pipeline.stop)
+        self.assertFalse(received.wait(0.1))
+        self.assertEqual(capture.count, 0)
+
+        self.assertTrue(pipeline.capture_once())
         self.assertTrue(received.wait(1))
-        time.sleep(0.05)
-        pipeline.stop()
-        self.assertEqual([message.message for message in messages], ["jangan mid"])
+        self.assertEqual(capture.count, 1)
+        pipeline.frames.join()
+
+        received.clear()
+        self.assertTrue(pipeline.capture_once())
+        self.assertTrue(received.wait(1))
+        self.assertEqual(capture.count, 2)
+        self.assertEqual([message.message for message in messages], ["jangan mid", "jangan mid"])
+
+    def test_capture_ignores_other_windows_and_disabled_translation(self):
+        client = ScreenRect(0, 0, 100, 40)
+        current = DotaWindow(1, "Dota 2", client, False)
+        capture = FakeCapture(3)
+        pipeline = CapturePipeline(
+            CONFIG,
+            lambda _message: None,
+            window_provider=lambda: current,
+            capture_factory=lambda _limit: capture,
+            backend=FakeBackend(),
+            language_detector=FakeLanguageDetector(),
+        )
+        pipeline.start()
+        self.addCleanup(pipeline.stop)
+        self.assertFalse(pipeline.capture_once())
+        current = DotaWindow(1, "Dota 2", client, True)
+        pipeline.set_enabled(False)
+        self.assertFalse(pipeline.capture_once())
+        self.assertEqual(capture.count, 0)
 
     def test_translation_runs_on_its_own_worker(self):
         translated = []
@@ -112,16 +139,44 @@ class PipelineTests(unittest.TestCase):
             on_translation=lambda message: (translated.append(message), received.set()),
             window_provider=lambda: DotaWindow(1, "Dota 2", ScreenRect(0, 0, 100, 40), True),
             capture_factory=FakeCapture,
-            detector=ChangeDetector(5, 0),
             backend=FakeBackend(),
             language_detector=FakeLanguageDetector(),
             translation_service=FakeTranslationService(),
         )
         pipeline.start()
+        self.addCleanup(pipeline.stop)
         self.assertIn("translation", [thread.name for thread in pipeline.threads])
+        self.assertTrue(pipeline.capture_once())
         self.assertTrue(received.wait(1))
-        pipeline.stop()
         self.assertEqual(translated[0].text, "中文：jangan mid (id)")
+
+    def test_empty_translation_produces_feedback_instead_of_a_subtitle(self):
+        feedback = queue.Queue()
+        translated = []
+
+        class EmptyTranslationService:
+            def translate(self, _text, _source_lang):
+                return " "
+
+        pipeline = CapturePipeline(
+            CONFIG,
+            lambda _message: None,
+            on_status=feedback.put,
+            on_translation=translated.append,
+            window_provider=lambda: DotaWindow(1, "Dota 2", ScreenRect(0, 0, 100, 40), True),
+            capture_factory=FakeCapture,
+            backend=FakeBackend(),
+            language_detector=FakeLanguageDetector(),
+            translation_service=EmptyTranslationService(),
+        )
+        pipeline.start()
+        self.addCleanup(pipeline.stop)
+        self.assertTrue(pipeline.capture_once())
+        self.assertEqual(
+            [feedback.get(timeout=1) for _ in range(3)],
+            ["Recognizing chat", "Translating chat", "No translated text"],
+        )
+        self.assertEqual(translated, [])
 
     def test_bounded_queue_drops_old_frame(self):
         frames = queue.Queue(maxsize=2)
@@ -138,15 +193,15 @@ class PipelineTests(unittest.TestCase):
             on_status=lambda status: failed.set() if status.startswith("OCR failed") else None,
             window_provider=lambda: DotaWindow(1, "Dota 2", ScreenRect(0, 0, 100, 40), True),
             capture_factory=FakeCapture,
-            detector=ChangeDetector(5, 0),
             backend=BrokenBackend(),
             language_detector=FakeLanguageDetector(),
         )
         with self.assertLogs(level="ERROR"):
             pipeline.start()
+            self.addCleanup(pipeline.stop)
+            self.assertTrue(pipeline.capture_once())
             self.assertTrue(failed.wait(1))
             self.assertTrue(next(thread for thread in pipeline.threads if thread.name == "ocr").is_alive())
-            pipeline.stop()
 
 
 if __name__ == "__main__":

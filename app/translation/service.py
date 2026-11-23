@@ -13,6 +13,9 @@ class TranslationService:
         self.glossary = glossary
         self.cache: dict[tuple[str, str], str] = {}
 
+    def prepare(self) -> None:
+        self.translator.prepare()
+
     def translate(self, text: str, source_lang: str) -> str:
         normalized = normalize_message(text)
         if not normalized:

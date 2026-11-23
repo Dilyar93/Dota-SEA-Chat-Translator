@@ -10,7 +10,6 @@ from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.capture.change_detector import ChangeDetector
 from app.capture.dota_window import foreground_dota_window
 from app.capture.roi import RatioROI
 from app.capture.screen_capture import ScreenCapture
@@ -48,10 +47,6 @@ def main() -> int:
     if frame.black:
         parser.error("captured ROI is black; use Borderless Window mode")
 
-    detector = ChangeDetector(
-        config["capture"]["change_threshold"], config["capture"]["debounce_ms"]
-    )
-    _change, change_ms = timed(lambda: detector.update(frame.image))
     ocr = PaddleOCRBackend(
         config["ocr"]["latin_model"],
         config["ocr"]["thai_model"],
@@ -79,7 +74,6 @@ def main() -> int:
 
     for name, elapsed in (
         ("Capture", capture_ms),
-        ("ChangeDetect", change_ms),
         ("OCR", ocr_ms),
         ("LangDetect", language_ms),
         ("Translation", translation_ms),

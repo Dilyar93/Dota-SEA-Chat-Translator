@@ -34,7 +34,7 @@ class ScreenCapture:
         if self._backend is None:
             self._backend = self._factory()
         shot = self._backend.grab(rect.as_mss_monitor())
-        image = shot.to_numpy(channels="BGR")
+        image = np.asarray(shot)[..., :3].copy()
         black = image.size == 0 or int(image.max(initial=0)) <= 3
         self._black_streak = self._black_streak + 1 if black else 0
         return CapturedFrame(

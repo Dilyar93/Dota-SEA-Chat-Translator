@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QPoint, QRect, Qt, Signal
-from PySide6.QtGui import QColor, QImage, QKeyEvent, QMouseEvent, QPainter, QPen, QPixmap
+from PySide6.QtCore import QPoint, QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QGuiApplication, QImage, QKeyEvent, QMouseEvent, QPainter, QPen, QPixmap, QShowEvent
 from PySide6.QtWidgets import QLabel, QWidget
 
 from app.capture.dota_window import ScreenRect
@@ -47,6 +47,23 @@ class CalibrationWindow(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        if QGuiApplication.platformName() == "windows":
+            QTimer.singleShot(0, self, self._fit_native_client)
+
+    def _fit_native_client(self) -> None:
+        import win32con
+        import win32gui
+
+        # Use desktop pixels after Qt has finished showing the logical window.
+        client = self._client
+        win32gui.SetWindowPos(
+            int(self.winId()), win32con.HWND_TOP,
+            client.left, client.top, client.width, client.height,
+            win32con.SWP_NOZORDER | win32con.SWP_NOACTIVATE,
+        )
+
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.drawPixmap(self.rect(), self._snapshot)
@@ -80,12 +97,13 @@ class CalibrationWindow(QWidget):
         if self._selection.width() < 20 or self._selection.height() < 20:
             return
         selection = ScreenRect(
-            self._client.left + self._selection.left(),
-            self._client.top + self._selection.top(),
+            self._selection.left(),
+            self._selection.top(),
             self._selection.width(),
             self._selection.height(),
         )
-        self.roi_selected.emit(RatioROI.from_screen_rect(selection, self._client))
+        client = ScreenRect(0, 0, self.width(), self.height())
+        self.roi_selected.emit(RatioROI.from_screen_rect(selection, client))
         self.close()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:

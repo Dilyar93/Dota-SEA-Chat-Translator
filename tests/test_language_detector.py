@@ -8,9 +8,10 @@ class FakeModel:
         self.code = code
         self.confidence = confidence
 
-    def predict(self, _text, k):
+    def predict(self, texts, k):
         assert k == 1
-        return (f"__label__{self.code}",), (self.confidence,)
+        assert isinstance(texts, list) and len(texts) == 1
+        return [(f"__label__{self.code}",)], [(self.confidence,)]
 
 
 class LanguageDetectorTests(unittest.TestCase):

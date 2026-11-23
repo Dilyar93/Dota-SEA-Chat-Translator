@@ -17,6 +17,14 @@ class MessageParserTests(unittest.TestCase):
             ParsedMessage("Fake Player", "tunggu"),
         )
 
+    def test_localized_team_tags_keep_clan_brackets_in_the_name(self):
+        for tag, speaker in (("【队友】", "Dilyar【UH.A】"), ("[队友]", "Dilyar[UH.A]")):
+            with self.subTest(tag=tag):
+                self.assertEqual(
+                    parse_chat_line(f"{tag}{speaker}: อย่าไปคนเดียว"),
+                    ParsedMessage(speaker, "อย่าไปคนเดียว"),
+                )
+
     def test_uncertain_line_is_kept_whole(self):
         self.assertEqual(parse_chat_line("jangan pergi mid"), ParsedMessage(None, "jangan pergi mid"))
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Mapping
 
 import numpy as np
 
@@ -20,6 +20,7 @@ class OCRToken:
 class OCRBatch:
     tokens: tuple[OCRToken, ...]
     model: str
+    has_detections: bool = True
 
     @property
     def confidence(self) -> float:
@@ -46,6 +47,7 @@ def _default_factory(
         use_doc_orientation_classify=False,
         use_doc_unwarping=False,
         use_textline_orientation=False,
+        enable_mkldnn=False,
         device="cpu",
     )
 
@@ -63,13 +65,18 @@ def _box_bounds(box: Iterable) -> tuple[float, float, float, float]:
     )
 
 
-def _tokens(results: Iterable) -> tuple[OCRToken, ...]:
+def _result_data(result) -> Mapping:
+    if isinstance(result, Mapping):
+        return result.get("res", result)
+    payload = result.json
+    if callable(payload):
+        payload = payload()
+    return payload.get("res", payload)
+
+
+def _tokens(results: Iterable[Mapping]) -> tuple[OCRToken, ...]:
     tokens: list[OCRToken] = []
-    for result in results:
-        payload = getattr(result, "json", result)
-        if callable(payload):
-            payload = payload()
-        data = payload.get("res", payload)
+    for data in results:
         texts = data.get("rec_texts", [])
         scores = data.get("rec_scores", [])
         boxes = data.get("rec_boxes")
@@ -104,7 +111,7 @@ class PaddleOCRBackend:
         self._factory = factory
         self._engines: dict[str, object] = {}
 
-    def _run(self, model: str, frame: np.ndarray) -> OCRBatch:
+    def _engine(self, model: str):
         if model not in self._engines:
             self._engines[model] = (
                 self._factory(self.model_names[model])
@@ -115,11 +122,37 @@ class PaddleOCRBackend:
                     self.model_dirs[model],
                 )
             )
-        return OCRBatch(_tokens(self._engines[model].predict(frame)), model)
+        return self._engines[model]
 
-    def recognize(self, frame: np.ndarray) -> OCRBatch:
+    def prepare(self) -> None:
+        self._engine("latin")
+        self._engine("thai")
+
+    def _run(self, model: str, frame: np.ndarray) -> OCRBatch:
+        data = [_result_data(result) for result in self._engine(model).predict(frame)]
+        detected = any(boxes is None or len(boxes) > 0 for boxes in (item.get("dt_polys") for item in data))
+        return OCRBatch(_tokens(data), model, detected)
+
+    def recognize(
+        self,
+        frame: np.ndarray,
+        *,
+        retry_thai: Callable[[tuple[OCRToken, ...]], bool] | None = None,
+    ) -> OCRBatch:
         latin = self._run("latin", frame)
-        if latin.tokens and latin.confidence >= self.confidence_threshold:
+        if not latin.has_detections:
             return latin
+        latin_confident = bool(latin.tokens) and latin.confidence >= self.confidence_threshold
+        retry_for_language = retry_thai is not None and bool(latin.tokens) and retry_thai(latin.tokens)
+        if latin_confident and not retry_for_language:
+            return latin
+
         thai = self._run("thai", frame)
+        if retry_for_language and any(
+            sum("\u0e00" <= char <= "\u0e7f" and char.isalpha() for char in token.text) >= 2
+            for token in thai.tokens
+        ):
+            return thai
+        if latin_confident:
+            return latin
         return thai if thai.confidence > latin.confidence else latin

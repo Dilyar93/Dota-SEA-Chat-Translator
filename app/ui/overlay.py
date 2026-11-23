@@ -38,18 +38,41 @@ class TranslationOverlay(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(8, 8, 8, 8)
         self.layout.setSpacing(4)
+        self.status_label = self._make_label("")
+        self.status_label.hide()
+        self.layout.addWidget(self.status_label)
+        self.status_timer = QTimer(self)
+        self.status_timer.setSingleShot(True)
+        self.status_timer.timeout.connect(lambda: self.set_status(""))
+
+    def _make_label(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setTextFormat(Qt.TextFormat.PlainText)
+        label.setWordWrap(True)
+        label.setStyleSheet(
+            f"color: white; background: rgba(0, 0, 0, {round(self.opacity * 255)});"
+            f"font-size: {self.font_size}px; padding: 6px 10px; border-radius: 4px;"
+        )
+        return label
+
+    def set_status(self, text: str, duration_ms: int = 0) -> None:
+        self.status_timer.stop()
+        self.status_label.setText(text)
+        self.status_label.setVisible(bool(text))
+        self.adjustSize()
+        if text:
+            self.show()
+            if duration_ms:
+                self.status_timer.start(duration_ms)
+        elif not self.labels and not self.edit_mode:
+            self.hide()
 
     def add_message(self, text: str) -> None:
         if not text.strip():
             return
         while len(self.labels) >= self.max_messages:
             self._remove(self.labels[0])
-        label = QLabel(text)
-        label.setWordWrap(True)
-        label.setStyleSheet(
-            f"color: white; background: rgba(0, 0, 0, {round(self.opacity * 255)});"
-            f"font-size: {self.font_size}px; padding: 6px 10px; border-radius: 4px;"
-        )
+        label = self._make_label(text)
         self.labels.append(label)
         self.layout.addWidget(label)
         self.adjustSize()
@@ -98,7 +121,7 @@ class TranslationOverlay(QWidget):
         self.layout.removeWidget(label)
         label.deleteLater()
         self.adjustSize()
-        if not self.labels and not self.edit_mode:
+        if not self.labels and not self.edit_mode and not self.status_label.text():
             self.hide()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:

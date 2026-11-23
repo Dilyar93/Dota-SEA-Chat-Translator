@@ -7,16 +7,17 @@ import sys
 from pathlib import Path
 
 import cv2
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QObject, QThread, QTimer, Signal
 from PySide6.QtWidgets import QApplication, QFileDialog, QSystemTrayIcon
 
-from app.capture.dota_window import find_dota_window
+from app.capture.dota_window import find_dota_window, foreground_dota_window
 from app.capture.roi import RatioROI, save_roi
 from app.capture.screen_capture import ScreenCapture
 from app.config import load_config, save_config
 from app.ocr.service import recognize_frame
 from app.pipeline import CapturePipeline, NewMessage, TranslatedMessage
 from app.ui.calibrator import CalibrationWindow, DebugPreview
+from app.ui.hotkey import HOTKEY_LABEL, TranslateHotkey
 from app.ui.overlay import TranslationOverlay
 from app.ui.settings import SettingsDialog
 from app.ui.tray import TrayIcon
@@ -168,6 +169,7 @@ class DesktopApp:
         }.get(message.source.source_lang, "翻译")
         speaker = f"{message.source.speaker}\n" if message.source.speaker else ""
         self.overlay.add_message(f"{speaker}[{language}] {message.text}")
+        self.overlay.set_status("")
         if not self.overlay_positioned:
             self.overlay.move_to_default()
             self.overlay_positioned = True
@@ -195,8 +197,22 @@ class DesktopApp:
 
     def _show_pipeline_status(self, status: str) -> None:
         print(status)
-        if status.startswith(("Black", "Capture failed", "OCR failed")):
-            self.notify(status)
+        feedback = {
+            "Recognizing chat": "正在识别聊天…",
+            "Translating chat": "正在翻译…",
+            "No chat text": "聊天区没有识别到文字。文字可见时再按 F8。",
+            "No supported chat": "识别到了文字，但没有可翻译的外语聊天。",
+            "No translated text": "这次没有生成译文。",
+            "Black capture detected; use Borderless Window mode": "截图是黑的，请切换到无边框窗口模式。",
+            "Capture failed; recalibrate the chat area": "截图失败，请重新校准聊天区。",
+            "OCR failed; see the application log": "聊天识别失败，请重试。",
+            "Translation failed": "翻译失败，请重试。",
+        }
+        if status in feedback:
+            duration = 0 if status in ("Recognizing chat", "Translating chat") else 5000
+            self.overlay.set_status(feedback[status], duration)
+            if not self.overlay_positioned:
+                self.overlay.move_to_default()
 
 
 def main() -> int:
@@ -213,6 +229,22 @@ def main() -> int:
     desktop_app.tray.show()
     desktop_app.pipeline.start()
     qt_app.aboutToQuit.connect(desktop_app.pipeline.stop)
+    if sys.platform == "win32":
+        hotkey = TranslateHotkey(desktop_app.pipeline.capture_once)
+        hotkey.unavailable.connect(
+            lambda: desktop_app.notify(f"Could not register {HOTKEY_LABEL}. It might already be in use.")
+        )
+
+        def update_hotkey() -> None:
+            hotkey.set_active(
+                desktop_app.tray.enabled_action.isChecked() and foreground_dota_window() is not None
+            )
+
+        focus_timer = QTimer(qt_app)
+        focus_timer.timeout.connect(update_hotkey)
+        focus_timer.start(150)
+        update_hotkey()
+        qt_app.aboutToQuit.connect(lambda: hotkey.set_active(False))
     return qt_app.exec()
 
 

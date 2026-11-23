@@ -1,12 +1,8 @@
 general:
   enabled: true
-  pause_when_dota_inactive: true
   offline_mode: true
 
 capture:
-  fps: 5
-  change_threshold: 5.0
-  debounce_ms: 150
   black_frame_limit: 5
 
 roi:

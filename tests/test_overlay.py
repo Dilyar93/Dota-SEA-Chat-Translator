@@ -37,6 +37,14 @@ class OverlayTests(unittest.TestCase):
         self.overlay.set_edit_mode(True)
         self.assertFalse(self.overlay.windowFlags() & Qt.WindowType.WindowTransparentForInput)
 
+    def test_progress_status_can_be_cleared_without_removing_translation(self):
+        self.overlay.set_status("正在识别聊天…")
+        self.assertTrue(self.overlay.status_label.isVisible())
+        self.overlay.add_message("译文")
+        self.overlay.set_status("")
+        self.assertFalse(self.overlay.status_label.isVisible())
+        self.assertTrue(self.overlay.isVisible())
+
 
 if __name__ == "__main__":
     unittest.main()

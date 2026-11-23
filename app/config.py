@@ -12,13 +12,9 @@ import yaml
 DEFAULT_CONFIG: dict[str, Any] = {
     "general": {
         "enabled": True,
-        "pause_when_dota_inactive": True,
         "offline_mode": True,
     },
     "capture": {
-        "fps": 5,
-        "change_threshold": 5.0,
-        "debounce_ms": 150,
         "black_frame_limit": 5,
     },
     "roi": {"left": 0.20, "top": 0.58, "width": 0.60, "height": 0.27},

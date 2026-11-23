@@ -6,6 +6,8 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
+from app.ui.hotkey import HOTKEY_LABEL
+
 
 class TrayIcon(QSystemTrayIcon):
     enabled_changed = Signal(bool)
@@ -18,10 +20,10 @@ class TrayIcon(QSystemTrayIcon):
     def __init__(self, enabled: bool = True):
         icon = QApplication.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
         super().__init__(icon)
-        self.setToolTip("Dota SEA Translator")
+        self.setToolTip(f"Dota SEA Translator ({HOTKEY_LABEL})")
         self.menu = QMenu()
 
-        title = self.menu.addAction("Dota SEA Translator")
+        title = self.menu.addAction(f"Translate Chat ({HOTKEY_LABEL})")
         title.setEnabled(False)
         self.menu.addSeparator()
 

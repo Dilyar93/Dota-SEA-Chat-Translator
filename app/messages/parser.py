@@ -7,7 +7,8 @@ from dataclasses import dataclass
 
 
 CHAT_LINE = re.compile(
-    r"^(?:\[(?:allies|all)\]\s*)?(?P<speaker>[^:：\[\]\r\n]{1,64})[:：]\s*(?P<message>.+)$",
+    r"^(?:[\[［【](?:allies|all|队友|全体|所有人)[\]］】]\s*)?"
+    r"(?P<speaker>[^:：\r\n]{1,64})[:：]\s*(?P<message>.+)$",
     re.IGNORECASE,
 )
 

@@ -45,10 +45,36 @@ class PaddleBackendTests(unittest.TestCase):
         self.assertEqual(batch.model, "thai")
         self.assertEqual(batch.tokens[0].text, "อย่าไป")
 
+    def test_unusable_high_confidence_latin_result_can_retry_thai(self):
+        def factory(name):
+            output = result("() Dir (.):", 0.98) if name.startswith("latin") else result(
+                "(] Dilyar (UH.A] : อย่าไปคนเดียว", 0.91
+            )
+            return FakeEngine(output)
+
+        batch = PaddleOCRBackend(factory=factory).recognize(
+            np.zeros((10, 10, 3), dtype=np.uint8),
+            retry_thai=lambda tokens: tokens[0].text == "() Dir (.):",
+        )
+        self.assertEqual(batch.model, "thai")
+
     def test_empty_results_are_safe(self):
         backend = PaddleOCRBackend(factory=lambda _name: FakeEngine(result("", 0)))
         batch = backend.recognize(np.zeros((10, 10, 3), dtype=np.uint8))
         self.assertEqual(batch.tokens, ())
+
+    def test_empty_detections_do_not_run_the_thai_pipeline(self):
+        loaded = []
+
+        def factory(name):
+            loaded.append(name)
+            output = result("", 0)
+            output["res"]["dt_polys"] = []
+            return FakeEngine(output)
+
+        batch = PaddleOCRBackend(factory=factory).recognize(np.zeros((10, 10, 3), dtype=np.uint8))
+        self.assertFalse(batch.has_detections)
+        self.assertEqual(len(loaded), 1)
 
 
 if __name__ == "__main__":

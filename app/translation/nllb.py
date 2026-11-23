@@ -56,12 +56,13 @@ class NLLBTranslator(Translator):
         self._engine = None
         self._tokenizer = None
 
-    def _load(self) -> None:
+    def prepare(self) -> None:
         if self._engine is None:
-            self._engine = self._engine_factory(
+            engine = self._engine_factory(
                 self.model_path, self.device, self.compute_type
             )
-            self._tokenizer = self._tokenizer_factory(self.tokenizer_path)
+            tokenizer = self._tokenizer_factory(self.tokenizer_path)
+            self._engine, self._tokenizer = engine, tokenizer
 
     def translate(self, text: str, source_lang: str, target_lang: str = "zh") -> str:
         text = text.strip()
@@ -73,7 +74,7 @@ class NLLBTranslator(Translator):
         except KeyError as error:
             raise ValueError(f"Unsupported NLLB language: {error.args[0]}") from error
 
-        self._load()
+        self.prepare()
         self._tokenizer.set_src_lang_special_tokens(source_code)
         source = self._tokenizer.convert_ids_to_tokens(self._tokenizer.encode(text))
         result = self._engine.translate_batch(

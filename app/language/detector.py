@@ -68,7 +68,8 @@ class LanguageDetector:
         try:
             if self._model is None:
                 self._model = self._model_loader(self.model_path)
-            labels, probabilities = self._model.predict(text, k=1)
+            # fasttext-wheel's single-string prediction is incompatible with NumPy 2.
+            (labels,), (probabilities,) = self._model.predict([text], k=1)
             label = labels[0].decode() if isinstance(labels[0], bytes) else labels[0]
             code = label.removeprefix("__label__")
             confidence = float(probabilities[0])

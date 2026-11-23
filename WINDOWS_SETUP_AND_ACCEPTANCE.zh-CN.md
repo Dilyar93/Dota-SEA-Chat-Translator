@@ -23,9 +23,9 @@ copy config.example.yaml config.yaml
 3. 在 Windows 托盘（可能位于折叠菜单）找到 **Dota SEA Translator**。
 4. 选择 **Calibrate Chat Area**，框选聊天文字区域并保存。
 5. 用 **Debug ROI Preview** 检查截图是否只包含聊天区。
-6. 保持 **Translation Enabled** 勾选。
+6. 保持 **Translation Enabled** 勾选。切回 Dota 2，看到聊天时按 **F8**。
 
-翻译会自动显示在透明悬浮窗中。需要调整位置时勾选 **Move Overlay**，拖动完成后取消勾选，恢复鼠标穿透。
+每次按键抓取一张聊天区画面，识别出的译文会显示在透明悬浮窗中。需要调整位置时勾选 **Move Overlay**，拖动完成后取消勾选，恢复鼠标穿透。
 
 ## 三、自动检查
 
@@ -60,9 +60,9 @@ Chinese:    等我一下
 - [ ] Debug Preview 能看到正常画面，没有持续黑屏。
 - [ ] 印尼语、泰语、越南语能被 OCR，并显示中文翻译。
 - [ ] 英语和中文默认不翻译。
-- [ ] 同一条消息停留在屏幕上时不会反复翻译。
+- [ ] 一次按键只处理当时的聊天画面，等待期间没有持续截图或 OCR。
 - [ ] 悬浮窗始终置顶、不抢键盘焦点，取消 **Move Overlay** 后鼠标可以穿透。
-- [ ] Dota 切到后台后停止捕获，切回后恢复。
+- [ ] Dota 切到后台后按快捷键不会截图，切回后可以再次触发。
 - [ ] 每条字幕最多保留约 8 秒，同时最多显示 5 条。
 - [ ] **Settings** 修改后能保存；按提示重启后配置生效。
 - [ ] 退出程序后没有保存聊天截图或聊天日志。
@@ -77,6 +77,6 @@ Chinese:    等我一下
 timeout /t 5 /nobreak & .venv\Scripts\python scripts\benchmark.py
 ```
 
-记录命令输出的 `Capture`、`ChangeDetect`、`OCR`、`LangDetect`、`Translation` 和 `Total`。首次翻译包含模型加载，明显较慢属于正常情况；同时可在任务管理器观察空闲 CPU 和内存。
+记录命令输出的 `Capture`、`OCR`、`LangDetect`、`Translation` 和 `Total`。首次翻译包含模型加载，耗时会更长。也可以在任务管理器观察空闲 CPU 和内存。
 
 完成后，把实测结果发给我；我会根据问题修复，并在 `DEVELOPMENT_PLAN.md` 中勾选 G1 和 7.3。

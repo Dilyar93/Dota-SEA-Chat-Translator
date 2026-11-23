@@ -18,13 +18,8 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("Dota SEA Translator Settings")
         form = QFormLayout(self)
 
-        self.pause_inactive = QCheckBox()
-        self.pause_inactive.setChecked(config["general"]["pause_when_dota_inactive"])
         self.offline = QCheckBox()
         self.offline.setChecked(config["general"]["offline_mode"])
-        self.fps = self._spin(1, 30, config["capture"]["fps"])
-        self.change_threshold = self._double(0.1, 255, config["capture"]["change_threshold"])
-        self.debounce = self._spin(0, 2000, config["capture"]["debounce_ms"])
         self.ocr_confidence = self._double(0, 1, config["ocr"]["confidence_threshold"], 0.05)
         self.translate_english = QCheckBox()
         self.translate_english.setChecked(not config["language"]["skip_english"])
@@ -36,11 +31,7 @@ class SettingsDialog(QDialog):
         self.opacity = self._double(0.1, 1, config["overlay"]["opacity"], 0.05)
 
         for label, widget in (
-            ("Pause when Dota is inactive", self.pause_inactive),
             ("Offline mode", self.offline),
-            ("Capture FPS", self.fps),
-            ("Change threshold", self.change_threshold),
-            ("Debounce (ms)", self.debounce),
             ("OCR confidence", self.ocr_confidence),
             ("Translate English", self.translate_english),
             ("Translate Chinese", self.translate_chinese),
@@ -73,11 +64,7 @@ class SettingsDialog(QDialog):
         return field
 
     def apply(self, config: dict) -> None:
-        config["general"]["pause_when_dota_inactive"] = self.pause_inactive.isChecked()
         config["general"]["offline_mode"] = self.offline.isChecked()
-        config["capture"]["fps"] = self.fps.value()
-        config["capture"]["change_threshold"] = self.change_threshold.value()
-        config["capture"]["debounce_ms"] = self.debounce.value()
         config["ocr"]["confidence_threshold"] = self.ocr_confidence.value()
         config["language"]["skip_english"] = not self.translate_english.isChecked()
         config["language"]["skip_chinese"] = not self.translate_chinese.isChecked()

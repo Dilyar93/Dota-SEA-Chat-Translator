@@ -12,7 +12,7 @@ class ConfigTests(unittest.TestCase):
             path.write_text("capture:\n  fps: 4\n", encoding="utf-8")
             config = load_config(path)
             self.assertEqual(config["capture"]["fps"], 4)
-            self.assertEqual(config["capture"]["debounce_ms"], 150)
+            self.assertEqual(config["capture"]["black_frame_limit"], 5)
             save_config(config, path)
             self.assertEqual(load_config(path), config)
 
